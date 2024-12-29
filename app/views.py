@@ -1,14 +1,61 @@
-from django.db import connection
-from django.core.mail import send_mail
-from django.shortcuts import render, redirect
 from datetime import datetime
-from app.models import GeneralInfo, Service, Testimonials, FrequentlyAskedQuestion, ContactFormLog, Blog
+from django.db import connection
 from django.conf import settings
-from django.template.loader import render_to_string
-from django.contrib import messages
 from django.utils import timezone
+from .models import Blog, Comment
+from django.contrib import messages
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login, logout, authenticate
+from django.shortcuts import render, redirect, get_object_or_404
+from .forms import CustomUserCreationForm, LoginForm, CommentForm
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from app.models import GeneralInfo, Service, Testimonials, FrequentlyAskedQuestion, ContactFormLog, Blog
+
 # Create your views here.
+
+def register(request):
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            messages.success(request, 'Ви успішно зареєструвалися!')
+            return redirect('profile')
+        else:
+            messages.error(request, 'Виникла помилка при реєстрації. Перевірте введені дані.')
+    else:
+        form = CustomUserCreationForm()
+    return render(request, 'register.html', {'form': form})
+
+def login_view(request):
+    if request.method == 'POST':
+        form = LoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                login(request, user)
+                next_url = request.GET.get('next', 'home')  # Перенаправлення після успішного входу
+                return redirect(next_url)
+            else:
+                form.add_error(None, 'Invalid credentials')
+    else:
+        form = LoginForm()
+
+    return render(request, 'login.html', {'form': form})
+
+@login_required
+def profile(request):
+    user = request.user  # Отримуємо поточного користувача
+    return render(request, 'profile.html', {'user': user})
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')
 
 def write_sql_queries_to_file(file_path):
     with open(file_path, 'w') as file:
@@ -42,7 +89,8 @@ def index(request):
         "twitter_url": getattr(general_info, "twitter_url", default_value),
         "facebook_url": getattr(general_info, "facebook_url", default_value),
         "instagram_url": getattr(general_info, "instagram_url", default_value),
-        "linkedin_url": getattr(general_info, "linkedin_url", default_value), 
+        "linkedin_url": getattr(general_info, "linkedin_url", default_value),
+        "profile_log": getattr(general_info, "profile_log",default_value),
         
         "services": services,
         "testimonials": testimonials,
@@ -109,18 +157,6 @@ def contact_form(request):
 
     return redirect('home')
 
-def blog_detail(request, blog_id):
-    blog = Blog.objects.get(id=blog_id)
-    
-    recent_blogs = Blog.objects.all().exclude(id=blog_id).order_by("-created_at")[:2]
-
-    
-    context = {
-        "blog": blog,
-        "recent_blogs": recent_blogs,
-    }
-    return render(request, "blog_details.html", context)
-
 def blogs(request):
     
     all_blogs = Blog.objects.all().order_by("-created_at")
@@ -145,3 +181,34 @@ def blogs(request):
     }
     
     return render(request, "blogs.html", context)
+
+@login_required
+def blog_detail(request, blog_id):
+    blog = get_object_or_404(Blog, id=blog_id)
+    comments = blog.comments.all()  # Отримуємо всі коментарі для блогу
+
+    # Якщо запит POST (коли користувач додає новий коментар)
+    if request.method == 'POST':
+        form = CommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.blog = blog  # Прив'язуємо коментар до цього блогу
+            comment.author = request.user  # Автор коментаря — поточний користувач
+            comment.save()
+            return redirect('blog_details', blog_id=blog.id)  # Перенаправляємо на ту ж сторінку
+
+    # Якщо запит GET (відображаємо форму коментаря)
+    else:
+        form = CommentForm()
+
+    # Отримуємо кілька останніх блогів для блоку "Recent Blogs"
+    recent_blogs = Blog.objects.all().exclude(id=blog_id).order_by('-created_at')[:2]
+
+    context = {
+        'blog': blog,
+        'comments': comments,
+        'form': form,
+        'recent_blogs': recent_blogs,
+    }
+
+    return render(request, 'blog_details.html', context)

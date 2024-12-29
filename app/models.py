@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
 from ckeditor.fields import RichTextField
+from django.db import models
+from django.contrib.auth.models import User
 
 class GeneralInfo(models.Model):
     company_name = models.CharField(max_length=255, default="Company")
@@ -12,7 +14,8 @@ class GeneralInfo(models.Model):
     twitter_url = models.URLField(blank=True, null=True)
     facebook_url = models.URLField(blank=True, null=True)
     instagram_url = models.URLField(blank=True, null=True)
-    linkedin_url = models.URLField(blank=True, null =True)
+    linkedin_url = models.URLField(blank=True, null=True)
+    profile_log = models.URLField(blank=True,null=True),
     
     def __str__(self):
         return self.company_name
@@ -42,6 +45,15 @@ class Testimonials(models.Model):
     
     def str(self):
         return f"{self.username} - {self.user_job_tittle}"
+    
+class Comment(models.Model):
+    blog = models.ForeignKey('Blog', on_delete=models.CASCADE, related_name='comments')  # Зв'язок із моделлю блогу
+    author = models.ForeignKey(User, on_delete=models.CASCADE)  # Автор коментаря
+    content = models.TextField()  # Текст коментаря
+    created_at = models.DateTimeField(auto_now_add=True)  # Час створення
+
+    def __str__(self):
+        return f'Comment by {self.author.username} on {self.blog.tittle}'
     
 class FrequentlyAskedQuestion(models.Model):
     question = models.CharField(max_length=255)

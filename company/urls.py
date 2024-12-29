@@ -17,6 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from app.views import index, aboutus, contact_form, blog_detail,blogs
+from django.contrib.auth import views as auth_views
+from django.contrib.auth.views import LoginView, LogoutView
+from app import views
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,5 +29,10 @@ urlpatterns = [
     path('index.html', index, name = "index.html"),
     path('contact/', contact_form, name="contact_form"),
     path('blog_details/<blog_id>', blog_detail, name="blog_detail"),
-    path('blogs/', blogs, name="blogs")
+    path('blogs/', blogs, name="blogs"),
+    path('register/', views.register, name='register'),
+    path('profile/', views.profile, name='profile'),
+    path('logout/', views.logout_view, name='logout'),
+    path('login/', views.login_view, name='login'),
+    path('blog_details/<int:blog_id>/', views.blog_detail, name='blog_details'),    
 ]

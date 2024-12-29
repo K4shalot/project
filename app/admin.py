@@ -1,5 +1,5 @@
 from django.contrib import admin
-from app.models import GeneralInfo, Service, Testimonials, FrequentlyAskedQuestion, ContactFormLog, Blog, Author
+from app.models import GeneralInfo, Service, Testimonials, FrequentlyAskedQuestion, ContactFormLog, Blog, Author, Comment
 
 @admin.register(GeneralInfo)
 class GeneralInfoAdmin(admin.ModelAdmin):
@@ -91,3 +91,8 @@ class BlogAdmin(admin.ModelAdmin):
         'created_at',
     ]
     
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('author', 'blog', 'content', 'created_at')
+    list_filter = ('created_at', 'author')
+    search_fields = ('author__username', 'content')
